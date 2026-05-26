@@ -25,7 +25,7 @@ class Config:
     LLM_MODEL_PATH = None
     RERANK_MODEL_PATH = None
     
-    DATA_DIR = "./data03"  # 必须和 main.py 同目录的 data03 文件夹
+    DATA_DIR = "./data03" 
 
     VECTOR_DB_DIR = "./chroma_db_final"
     PERSIST_DIR = "./storage_final"
@@ -60,33 +60,27 @@ response_template = PromptTemplate(QA_TEMPLATE)
 # 🔥 全局独立函数：init_models()  【必须有！】
 # ===========================================================================
 def init_models():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    embed_model = HuggingFaceEmbedding(model_name=Config.EMBED_MODEL_PATH, device=device)
+    device = "cpu"  # 云端强制CPU
 
+    # 嵌入模型（云端API）
+    from llama_index.embeddings.dashscope import DashScopeEmbedding
+    embed_model = DashScopeEmbedding(
+        model_name="text-embedding-v1",
+        api_key=st.secrets["DASHSCOPE_API_KEY"],
+    )
+
+    # LLM（云端API）
     llm = None
-    if Config.GENERATE_MODE == "local":
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=torch.bfloat16
-        )
-        llm = HuggingFaceLLM(
-            model_name=Config.LLM_MODEL_PATH,
-            tokenizer_name=Config.LLM_MODEL_PATH,
-            model_kwargs={"trust_remote_code": True, "quantization_config": quantization_config},
-            tokenizer_kwargs={"trust_remote_code": True},
-            generate_kwargs={"temperature": 0.1},
-            device_map="auto" if device == "cuda" else None
-        )
-
-    elif Config.GENERATE_MODE == "qwen3api":
+    if Config.GENERATE_MODE == "qwen3api":
         llm = DashScope(
             model_name=DashScopeGenerationModels.QWEN_MAX,
-            api_key=os.getenv("DASHSCOPE_API_KEY"),
+            api_key=st.secrets["DASHSCOPE_API_KEY"],
             temperature=0.1,
         )
 
+    # Reranker（线上公共模型，自动下载）
     reranker = SentenceTransformerRerank(
-        model=Config.RERANK_MODEL_PATH,
+        model="BAAI/bge-reranker-base",
         top_n=Config.RERANK_TOP_K
     )
 
