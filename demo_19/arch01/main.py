@@ -3,6 +3,7 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 os.environ["CHROMA_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY_OPENTELEMETRY_ENABLED"] = "False"
 import streamlit as st
+print("st.secrets keys:", list(st.secrets.keys()))
 from core import (
     Config,
     get_rag_engine,
