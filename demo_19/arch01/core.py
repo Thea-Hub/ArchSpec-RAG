@@ -21,11 +21,12 @@ from llama_index.llms.dashscope import DashScope, DashScopeGenerationModels
 # ================== 配置 ==================
 class Config:
     GENERATE_MODE = "qwen3api"
-    EMBED_MODEL_PATH = r"G:\project2026\project3_architect_chat\demo_21\model\EMBED_MODEL"
-    LLM_MODEL_PATH = r"G:\project2026\项目1_中医临床智能诊疗系统\model\Qwen1.5-7B-Chat"
-    RERANK_MODEL_PATH = r"E:\PythonNotebook\juke ai\work project\l2\day20-RAG+微调实现智能专家系统（部署测试）\day20-RAG+微调实现智能专家系统（部署测试）\demo_20\model\RERANK_MODEL"
+    EMBED_MODEL_PATH = None
+    LLM_MODEL_PATH = None
+    RERANK_MODEL_PATH = None
+    
+    DATA_DIR = "./data03"  # 必须和 main.py 同目录的 data03 文件夹
 
-    DATA_DIR = r"E:\PythonNotebook\juke ai\work project\l2\day19-RAG+微调实现智能专家系统（方案数据篇）\day19-RAG+微调实现智能专家系统（方案数据篇）\demo_19\data03"
     VECTOR_DB_DIR = "./chroma_db_final"
     PERSIST_DIR = "./storage_final"
 
