@@ -1,3 +1,6 @@
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+os.environ["CHROMA_TELEMETRY"] = "False"
 import streamlit as st
 from core import (
     Config,
