@@ -65,6 +65,13 @@ response_template = PromptTemplate(QA_TEMPLATE)
 # 🔥 全局独立函数：init_models()  【必须有！】
 # ===========================================================================
 def init_models():
+    import traceback
+    try:
+        print("=== st 模块是否存在？", "st" in globals())
+        print("st.secrets 内容：", st.secrets)  # 仅测试，部署后可移除
+    except Exception as e:
+        print("调试信息：", e)
+        traceback.print_exc()
     device = "cpu"  # 云端强制CPU
 
     # 嵌入模型（云端API）
