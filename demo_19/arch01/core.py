@@ -1,3 +1,7 @@
+import os
+os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+os.environ["CHROMA_TELEMETRY"] = "False"
+os.environ["CHROMA_TELEMETRY_OPENTELEMETRY_ENABLED"] = "False"
 import json
 import re
 import torch
