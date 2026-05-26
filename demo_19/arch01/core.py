@@ -30,7 +30,13 @@ class Config:
     LLM_MODEL_PATH = None
     RERANK_MODEL_PATH = None
     
-    DATA_DIR = "./data03" 
+    # 动态获取 data03 的绝对路径（兼容 Streamlit Cloud）
+    CURRENT_DIR = Path(__file__).parent                     # demo_19/arch01
+    DATA_DIR = str(CURRENT_DIR.parent / "data03")           # demo_19/data03
+    
+    # 指定要加载的 JSON 文件名（必须是 data03 目录下实际存在的文件）
+    DATA_FILE = "规范解析结果_最终完美版.json"               # 👈 改成你的实际文件名
+     
 
     VECTOR_DB_DIR = "./chroma_db_final"
     PERSIST_DIR = "./storage_final"
