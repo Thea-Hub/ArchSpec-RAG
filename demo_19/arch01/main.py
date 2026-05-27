@@ -123,8 +123,8 @@ def main():
             initial_nodes = retriever.retrieve(final_q)
             filtered_nodes = filter_by_building_type(clean_q, initial_nodes)
             
-            # 🔥 云端安全：强制不使用 reranker（防止崩溃）
-            reranked_nodes = filtered_nodes[:Config.RERANK_TOP_K]
+            # 恢复 rerank 精排（效果回来，但线上可能内存溢出）
+            reranked_nodes = reranker.postprocess_nodes(filtered_nodes, query_str=final_q)
 
             # 分数过滤保留
             reranked_nodes = [n for n in reranked_nodes if n.score > Config.MIN_RERANK_SCORE]
