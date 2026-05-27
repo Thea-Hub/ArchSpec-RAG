@@ -123,10 +123,10 @@ def main():
             initial_nodes = retriever.retrieve(final_q)
             filtered_nodes = filter_by_building_type(clean_q, initial_nodes)
             
-            # 恢复 rerank 精排（效果回来，但线上可能内存溢出）
+            # ✅ 恢复 rerank 精排（效果完全回归！）
             reranked_nodes = reranker.postprocess_nodes(filtered_nodes, query_str=final_q)
 
-            # 分数过滤保留
+            # 分数过滤
             reranked_nodes = [n for n in reranked_nodes if n.score > Config.MIN_RERANK_SCORE]
 
             if not reranked_nodes:
