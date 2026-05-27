@@ -8,39 +8,60 @@ os.environ["CHROMA_TELEMETRY_OPENTELEMETRY_ENABLED"] = "False"
 os.environ["OTEL_SDK_DISABLED"] = "true"
 
 # ======================
-# 🔥 限流防刷配置（每日20次 + 单人3次）
+# 🔥 真正服务器级全局每日限流（20次/天，无法绕过）
 # ======================
 import time
+import json
 from datetime import datetime
 import streamlit as st
 
-# 限流额度（可自己改）
-DAILY_LIMIT = 20
-USER_LIMIT = 3
+# ---------- 配置 ----------
+DAILY_GLOBAL_LIMIT = 20  # 全局每日20次
+USER_SESSION_LIMIT = 3    # 单会话3次
+LIMIT_FILE = "rate_limit.json"  # 服务器本地文件存计数
 
-# 初始化计数器
-if "request_count" not in st.session_state:
-    st.session_state["request_count"] = 0
+# ---------- 全局文件计数（服务器级） ----------
+def load_global_limit():
+    if not os.path.exists(LIMIT_FILE):
+        return {"date": str(datetime.now().date()), "count": 0}
+    try:
+        with open(LIMIT_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {"date": str(datetime.now().date()), "count": 0}
+
+def save_global_limit(data):
+    with open(LIMIT_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def check_global_daily_limit():
+    """检查全局每日20次，跨天自动重置"""
+    data = load_global_limit()
+    today = str(datetime.now().date())
+
+    # 跨天重置
+    if data["date"] != today:
+        data = {"date": today, "count": 0}
+        save_global_limit(data)
+
+    # 超过全局上限
+    if data["count"] >= DAILY_GLOBAL_LIMIT:
+        st.error(f"❌ 今日全局额度已用完（每日{DAILY_GLOBAL_LIMIT}次），请明天再来！")
+        return False
+
+    # 计数+1并保存
+    data["count"] += 1
+    save_global_limit(data)
+    return True
+
+# ---------- 单会话限流（浏览器级） ----------
 if "user_requests" not in st.session_state:
     st.session_state["user_requests"] = 0
-if "last_reset_date" not in st.session_state:
-    st.session_state["last_reset_date"] = str(datetime.now().date())
 
-def check_rate_limit():
-    today = str(datetime.now().date())
-    if today != st.session_state["last_reset_date"]:
-        st.session_state["request_count"] = 0
-        st.session_state["last_reset_date"] = today
-
-    if st.session_state["request_count"] >= DAILY_LIMIT:
-        st.warning(f"⚠️ 今日演示次数已用完（每日{DAILY_LIMIT}次），请明天再来～")
+def check_user_session_limit():
+    if st.session_state["user_requests"] >= USER_SESSION_LIMIT:
+        st.warning(f"⚠️ 你已达到本次会话上限（{USER_SESSION_LIMIT}次），请刷新页面重新体验。")
         return False
-
-    if st.session_state["user_requests"] >= USER_LIMIT:
-        st.warning(f"⚠️ 你已达到演示上限（每人{USER_LIMIT}次）")
-        return False
-
-    st.session_state["request_count"] += 1
     st.session_state["user_requests"] += 1
     return True
 
@@ -102,15 +123,17 @@ def main():
     retriever, reranker, response_synthesizer = load_rag_engine()
     init_chat_interface()
 
-    # 显示剩余次数
-    remaining = max(0, DAILY_LIMIT - st.session_state["request_count"])
-    st.caption(f"📊 今日剩余演示次数：{remaining}")
+    # 显示全局剩余次数
+    global_data = load_global_limit()
+    remaining_global = max(0, DAILY_GLOBAL_LIMIT - global_data["count"])
+    st.caption(f"📊 今日全局剩余次数：{remaining_global} / {DAILY_GLOBAL_LIMIT}")
 
     if prompt := st.chat_input("请输入建筑防火规范问题..."):
-        # ======================
-        # 🔥 限流检查（关键）
-        # ======================
-        if not check_rate_limit():
+        # 1. 先检查全局每日20次（服务器级，不可绕过）
+        if not check_global_daily_limit():
+            st.stop()
+        # 2. 再检查单会话3次（浏览器级）
+        if not check_user_session_limit():
             st.stop()
 
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -123,7 +146,7 @@ def main():
             initial_nodes = retriever.retrieve(final_q)
             filtered_nodes = filter_by_building_type(clean_q, initial_nodes)
             
-            # ✅ 恢复 rerank 精排（效果完全回归！）
+            # 恢复 rerank 精排（效果回归）
             reranked_nodes = reranker.postprocess_nodes(filtered_nodes, query_str=final_q)
 
             # 分数过滤
