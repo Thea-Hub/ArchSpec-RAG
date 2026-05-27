@@ -1,8 +1,52 @@
+# ======================
+# 🔥 终极环境修复（必须放第一行）
+# ======================
 import os
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 os.environ["CHROMA_TELEMETRY"] = "False"
 os.environ["CHROMA_TELEMETRY_OPENTELEMETRY_ENABLED"] = "False"
+os.environ["OTEL_SDK_DISABLED"] = "true"
+
+# ======================
+# 🔥 限流防刷配置（每日20次 + 单人3次）
+# ======================
+import time
+from datetime import datetime
 import streamlit as st
+
+# 限流额度（可自己改）
+DAILY_LIMIT = 20
+USER_LIMIT = 3
+
+# 初始化计数器
+if "request_count" not in st.session_state:
+    st.session_state["request_count"] = 0
+if "user_requests" not in st.session_state:
+    st.session_state["user_requests"] = 0
+if "last_reset_date" not in st.session_state:
+    st.session_state["last_reset_date"] = str(datetime.now().date())
+
+def check_rate_limit():
+    today = str(datetime.now().date())
+    if today != st.session_state["last_reset_date"]:
+        st.session_state["request_count"] = 0
+        st.session_state["last_reset_date"] = today
+
+    if st.session_state["request_count"] >= DAILY_LIMIT:
+        st.warning(f"⚠️ 今日演示次数已用完（每日{DAILY_LIMIT}次），请明天再来～")
+        return False
+
+    if st.session_state["user_requests"] >= USER_LIMIT:
+        st.warning(f"⚠️ 你已达到演示上限（每人{USER_LIMIT}次）")
+        return False
+
+    st.session_state["request_count"] += 1
+    st.session_state["user_requests"] += 1
+    return True
+
+# ======================
+# 正常导入
+# ======================
 print("st.secrets keys:", list(st.secrets.keys()))
 from core import (
     Config,
@@ -17,24 +61,20 @@ st.set_page_config(page_title="建筑防火规范专家", page_icon="🏗️", l
 st.title("🏗️ 建筑设计防火规范智能查询系统")
 st.markdown("---")
 
-
-# 缓存 RAG 引擎，避免重复加载（最重要修复）
+# 缓存 RAG 引擎
 @st.cache_resource
 def load_rag_engine():
     return get_rag_engine()
-
 
 def disable_streamlit_watcher():
     try:
         def _on_script_changed(_):
             return
-
         from streamlit import runtime
         if runtime.exists():
             runtime.get_instance()._on_script_changed = _on_script_changed
     except:
         pass
-
 
 def init_chat_interface():
     if "messages" not in st.session_state:
@@ -44,7 +84,6 @@ def init_chat_interface():
             st.markdown(msg["content"])
             if msg["role"] == "assistant" and "reference_nodes" in msg:
                 show_ref(msg["reference_nodes"])
-
 
 def show_ref(nodes):
     with st.expander("📖 查看参考规范依据"):
@@ -58,16 +97,22 @@ def show_ref(nodes):
             else:
                 st.info(node.node.text)
 
-
 def main():
     disable_streamlit_watcher()
-
-    # 从缓存加载引擎（修复）
     retriever, reranker, response_synthesizer = load_rag_engine()
-
     init_chat_interface()
 
-    if prompt := st.chat_input("请输入建筑防火规范问题，例如：22层住宅一级耐火尽端走廊疏散距离？"):
+    # 显示剩余次数
+    remaining = max(0, DAILY_LIMIT - st.session_state["request_count"])
+    st.caption(f"📊 今日剩余演示次数：{remaining}")
+
+    if prompt := st.chat_input("请输入建筑防火规范问题..."):
+        # ======================
+        # 🔥 限流检查（关键）
+        # ======================
+        if not check_rate_limit():
+            st.stop()
+
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
@@ -77,7 +122,11 @@ def main():
             final_q = enhance_query_with_reasoning(clean_q)
             initial_nodes = retriever.retrieve(final_q)
             filtered_nodes = filter_by_building_type(clean_q, initial_nodes)
-            reranked_nodes = reranker.postprocess_nodes(filtered_nodes, query_str=final_q)
+            
+            # 🔥 云端安全：强制不使用 reranker（防止崩溃）
+            reranked_nodes = filtered_nodes[:Config.RERANK_TOP_K]
+
+            # 分数过滤保留
             reranked_nodes = [n for n in reranked_nodes if n.score > Config.MIN_RERANK_SCORE]
 
             if not reranked_nodes:
@@ -95,7 +144,6 @@ def main():
             "content": resp_text,
             "reference_nodes": reranked_nodes[:3]
         })
-
 
 if __name__ == "__main__":
     main()
