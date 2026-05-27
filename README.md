@@ -16,7 +16,7 @@ This is my first project: ArchCode-RAG, A RAG system for Chinese architectural c
 | 业务执行层 | 业务逻辑流水线 | 问答业务流 / 多人会话 / 图纸审查 |
 | 工具与数据层 | 数据与能力支撑 | RAG知识库 / CAD解析工具 / 数据库 |
 ### rag demo演示
-在线演示：<br>
+在线演示：https://archspec-rag.streamlit.app/<br>
 离线演示：https://github.com/user-attachments/assets/4ac9de67-d726-4c7f-a777-db179362432c<br>
 ## 技术栈
 语言：Python<br>
